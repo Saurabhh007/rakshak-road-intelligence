@@ -1,0 +1,32 @@
+[
+  {
+    "type": "pothole",
+    "latitude": 12.9720,
+    "longitude": 77.5940,
+    "severity": "high",
+    "status": "ACTIVE",
+    "confidence": 0.93,
+    "first_detected": "2026-08-22T01:00:00Z",
+    "last_detected": "2026-08-22T01:05:00Z"
+  },
+  {
+    "type": "pothole",
+    "latitude": 12.9735,
+    "longitude": 77.5955,
+    "severity": "medium",
+    "status": "VERIFIED",
+    "confidence": 0.82,
+    "first_detected": "2026-08-22T01:02:00Z",
+    "last_detected": "2026-08-22T01:02:00Z"
+  },
+  {
+    "type": "pothole",
+    "latitude": 12.9750,
+    "longitude": 77.5970,
+    "severity": "low",
+    "status": "DETECTED",
+    "confidence": 0.65,
+    "first_detected": "2026-08-22T01:04:00Z",
+    "last_detected": "2026-08-22T01:04:00Z"
+  }
+]

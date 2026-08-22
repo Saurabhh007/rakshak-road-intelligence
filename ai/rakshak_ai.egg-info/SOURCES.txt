@@ -1,0 +1,13 @@
+setup.py
+./src/__init__.py
+./src/detector.py
+./src/utils.py
+./src/validate_model.py
+./tests/__init__.py
+./tests/test_detector.py
+rakshak_ai.egg-info/PKG-INFO
+rakshak_ai.egg-info/SOURCES.txt
+rakshak_ai.egg-info/dependency_links.txt
+rakshak_ai.egg-info/requires.txt
+rakshak_ai.egg-info/top_level.txt
+tests/test_detector.py

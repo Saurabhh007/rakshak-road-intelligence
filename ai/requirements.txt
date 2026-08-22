@@ -1,0 +1,4 @@
+ultralytics==8.3.205
+opencv-python>=4.10.0
+numpy>=2.1.0
+pytest>=8.3.0
