@@ -20,6 +20,7 @@ export default function App() {
         systemStatus,
         roadHealth,
         hazards,
+        hazardsError,
         refreshData
     } = useTelemetry(isSimulating, gpsSource);
 
@@ -73,6 +74,7 @@ export default function App() {
                         hazards={hazards} 
                         currentCoords={currentCoords} 
                         routeCoordinates={demoRoute} 
+                        error={hazardsError}
                     />
                 </section>
 

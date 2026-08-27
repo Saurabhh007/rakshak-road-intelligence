@@ -1,0 +1,5 @@
+names:
+  0: pothole
+  1: crack
+path: .
+train: train.txt

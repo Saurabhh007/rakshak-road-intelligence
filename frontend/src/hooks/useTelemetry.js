@@ -12,6 +12,7 @@ export default function useTelemetry(isSimulating, gpsSource) {
     });
     const [roadHealth, setRoadHealth] = useState(null);
     const [hazards, setHazards] = useState([]);
+    const [hazardsError, setHazardsError] = useState(null);
 
     const routeIndexRef = useRef(0);
     const audioContextRef = useRef(null);
@@ -126,6 +127,8 @@ export default function useTelemetry(isSimulating, gpsSource) {
         };
 
         syncTelemetry();
+        const interval = setInterval(syncTelemetry, 2000);
+        return () => clearInterval(interval);
     }, [currentCoords, gpsSource, isSimulating]);
 
     // 4. Fetch Hazards list & Road Health index
@@ -137,6 +140,9 @@ export default function useTelemetry(isSimulating, gpsSource) {
             if (hazardsRes.ok) {
                 const hazardsData = await hazardsRes.json();
                 setHazards(hazardsData);
+                setHazardsError(null);
+            } else {
+                setHazardsError("Unable to load hazards");
             }
 
             // Fetch road health score calculations
@@ -149,6 +155,7 @@ export default function useTelemetry(isSimulating, gpsSource) {
             }
         } catch (err) {
             console.error("Error fetching map hazards metadata:", err);
+            setHazardsError("Unable to load hazards");
         }
     };
 
@@ -165,6 +172,7 @@ export default function useTelemetry(isSimulating, gpsSource) {
         systemStatus,
         roadHealth,
         hazards,
+        hazardsError,
         refreshData
     };
 }

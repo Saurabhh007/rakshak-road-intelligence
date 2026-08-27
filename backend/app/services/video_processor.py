@@ -1,5 +1,8 @@
 import threading
 import time
+import urllib.request
+import select
+import numpy as np
 import cv2
 import logging
 from pathlib import Path
@@ -90,6 +93,10 @@ class VideoProcessor:
     def source_type(self) -> str:
         return "network" if "://" in settings.VIDEO_SOURCE else "file"
 
+    @property
+    def is_mjpeg_http(self) -> bool:
+        return settings.VIDEO_SOURCE.startswith(("http://", "https://"))
+
     def get_camera_status(self) -> dict[str, object]:
         """Return camera state without exposing the configured stream URL or credentials."""
         with self.frame_lock:
@@ -109,20 +116,33 @@ class VideoProcessor:
                 if not self.is_running:
                     break
             
-            # Initialise Video capture device / file
-            cap = cv2.VideoCapture(settings.VIDEO_SOURCE)
-            if not cap.isOpened():
-                self._set_camera_connected(False)
-                logger.error("CAMERA CONNECTION FAILED: Unable to open configured %s VIDEO_SOURCE", self.source_type)
-                time.sleep(5.0)
-                continue
-            self._set_camera_connected(True)
-            logger.info("Camera source connected (%s)", self.source_type)
+            # Initialise Video capture device / file / HTTP stream
+            if self.is_mjpeg_http:
+                try:
+                    stream = urllib.request.urlopen(settings.VIDEO_SOURCE, timeout=5)
+                    self._set_camera_connected(True)
+                    logger.info("Camera source connected (HTTP MJPEG: %s)", settings.VIDEO_SOURCE)
+                except Exception as e:
+                    self._set_camera_connected(False)
+                    logger.error("CAMERA CONNECTION FAILED: Unable to open configured HTTP MJPEG VIDEO_SOURCE: %s", e)
+                    time.sleep(5.0)
+                    continue
+                bytes_data = bytearray()
+                frame_delay = 1.0 / 30.0
+            else:
+                cap = cv2.VideoCapture(settings.VIDEO_SOURCE)
+                if not cap.isOpened():
+                    self._set_camera_connected(False)
+                    logger.error("CAMERA CONNECTION FAILED: Unable to open configured %s VIDEO_SOURCE", self.source_type)
+                    time.sleep(5.0)
+                    continue
+                self._set_camera_connected(True)
+                logger.info("Camera source connected (%s)", self.source_type)
                 
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            if fps <= 0:
-                fps = 30.0
-            frame_delay = 1.0 / fps
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                if fps <= 0:
+                    fps = 30.0
+                frame_delay = 1.0 / fps
             
             frame_index = 0
             
@@ -132,11 +152,55 @@ class VideoProcessor:
                         break
                         
                 start_time = time.time()
-                ret, frame = cap.read()
-                if not ret:
-                    self._set_camera_connected(False)
-                    logger.warning("Camera frame read failed or source ended (%s); reconnecting", self.source_type)
-                    break
+                
+                if self.is_mjpeg_http:
+                    frame = None
+                    ret = False
+                    try:
+                        while True:
+                            # Try to find a complete JPEG frame in the bytes buffer
+                            a = bytes_data.find(b'\xff\xd8')
+                            if a != -1:
+                                b = bytes_data.find(b'\xff\xd9', a + 2)
+                                if b != -1:
+                                    # We have a complete JPEG frame
+                                    jpg_bytes = bytes_data[a:b+2]
+                                    del bytes_data[:b+2]
+                                    frame = cv2.imdecode(np.frombuffer(jpg_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+                                    if frame is not None:
+                                        ret = True
+                                        break
+                                    else:
+                                        logger.warning("Failed to decode JPEG frame, searching next")
+                                        continue
+                            else:
+                                # Clear buffer if it grows too large without finding JPEG marker
+                                if len(bytes_data) > 1024 * 1024:
+                                    bytes_data.clear()
+                            
+                            # Read more data from socket
+                            chunk = stream.read(8192)
+                            if not chunk:
+                                logger.warning("MJPEG stream ended")
+                                break
+                            bytes_data.extend(chunk)
+                    except Exception as e:
+                        logger.error("Error reading from MJPEG stream: %s", e)
+                    
+                    if not ret or frame is None:
+                        self._set_camera_connected(False)
+                        logger.warning("Camera frame read failed or source ended (%s); reconnecting", self.source_type)
+                        try:
+                            stream.close()
+                        except Exception:
+                            pass
+                        break
+                else:
+                    ret, frame = cap.read()
+                    if not ret:
+                        self._set_camera_connected(False)
+                        logger.warning("Camera frame read failed or source ended (%s); reconnecting", self.source_type)
+                        break
                     
                 detections: List[Detection] = []
                 # Frame Sampling logic: run YOLO inference at configurable intervals
@@ -161,7 +225,13 @@ class VideoProcessor:
                 sleep_time = max(0.001, frame_delay - elapsed)
                 time.sleep(sleep_time)
                 
-            cap.release()
+            if self.is_mjpeg_http:
+                try:
+                    stream.close()
+                except Exception:
+                    pass
+            else:
+                cap.release()
 
     def _save_detections(self, detections: List[Detection]):
         """

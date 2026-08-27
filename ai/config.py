@@ -11,7 +11,7 @@ class DetectorConfig:
 
     model_path: Path | None = None
     confidence_threshold: float = 0.60
-    pothole_class_name: str = "pothole"
+    pothole_class_name: str = "D40"
 
     @classmethod
     def from_environment(cls) -> "DetectorConfig":
@@ -22,5 +22,5 @@ class DetectorConfig:
         return cls(
             model_path=Path(configured_path).expanduser() if configured_path else None,
             confidence_threshold=threshold,
-            pothole_class_name=os.getenv("RAKSHAK_POTHOLE_CLASS_NAME", "pothole"),
+            pothole_class_name=os.getenv("RAKSHAK_POTHOLE_CLASS_NAME", "D40"),
         )

@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-export default function MapView({ hazards, currentCoords, routeCoordinates }) {
+export default function MapView({ hazards, currentCoords, routeCoordinates, error }) {
     const mapRef = useRef(null);
     const mapInstance = useRef(null);
     const vehicleMarker = useRef(null);
@@ -83,12 +83,12 @@ export default function MapView({ hazards, currentCoords, routeCoordinates }) {
         hazardLayerGroup.current.clearLayers();
 
         hazards.forEach(h => {
-            // Assign color scheme based on severity level
-            let color = "#E53E3E"; // Red for high
+            // Assign color scheme based on severity level (aligning with RAKSHAK Core theme variables)
+            let color = "#f56565"; // Red for high
             if (h.severity === "medium") {
-                color = "#DD6B20"; // Amber/Orange
+                color = "#ed8936"; // Orange
             } else if (h.severity === "low") {
-                color = "#D69E2E"; // Yellow
+                color = "#48bb78"; // Green
             }
 
             // Draw hazard circle marker
@@ -100,13 +100,39 @@ export default function MapView({ hazards, currentCoords, routeCoordinates }) {
                 weight: 2
             });
 
-            // Bind click popup with stats metadata details
+            // Format coordinates, date, and ID from actual backend data schema
+            const formattedLat = typeof h.latitude === "number" ? h.latitude.toFixed(6) : "N/A";
+            const formattedLng = typeof h.longitude === "number" ? h.longitude.toFixed(6) : "N/A";
+            const formattedTime = h.timestamp ? new Date(h.timestamp).toLocaleTimeString() : "N/A";
+            const formattedDate = h.timestamp ? new Date(h.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : "N/A";
+            const hazardId = `PTH-${String(h.id).padStart(3, '0')}`;
+
+            // Bind click popup with stats metadata details structured as a dark HUD card
             marker.bindPopup(`
-                <div style="font-family: sans-serif; font-size: 13px;">
-                    <b style="text-transform: uppercase; color: ${color};">${h.type} (${h.severity})</b><br/>
-                    <b>Status:</b> ${h.status}<br/>
-                    <b>Confidence:</b> ${(h.confidence * 100).toFixed(0)}%<br/>
-                    <b>Last Sighted:</b> ${new Date(h.last_detected).toLocaleTimeString()}
+                <div class="custom-map-popup">
+                    <div class="popup-title" style="color: ${color};">
+                        ${h.type.toUpperCase()} #${hazardId}
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">Severity:</span> 
+                        <span class="popup-value" style="color: ${color}; font-weight: 800;">${h.severity.toUpperCase()}</span>
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">Confidence:</span> 
+                        <span class="popup-value highlight-blue">${(h.confidence * 100).toFixed(0)}%</span>
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">Location:</span> 
+                        <span class="popup-value font-mono">${formattedLat}, ${formattedLng}</span>
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">Status:</span> 
+                        <span class="popup-value status-active">${h.status}</span>
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">Detected:</span> 
+                        <span class="popup-value">${formattedDate} ${formattedTime}</span>
+                    </div>
                 </div>
             `);
 
@@ -115,14 +141,28 @@ export default function MapView({ hazards, currentCoords, routeCoordinates }) {
     }, [hazards]);
 
     return (
-        <div 
-            ref={mapRef} 
-            id="map" 
-            style={{ 
-                width: "100%", 
-                height: "100%", 
-                backgroundColor: "#111" 
-            }} 
-        />
+        <div style={{ position: "relative", width: "100%", height: "100%" }}>
+            <div 
+                ref={mapRef} 
+                id="map" 
+                style={{ 
+                    width: "100%", 
+                    height: "100%", 
+                    backgroundColor: "#111" 
+                }} 
+            />
+            {error && (
+                <div className="map-error-overlay">
+                    <span className="overlay-icon">⚠️</span>
+                    <span>{error}</span>
+                </div>
+            )}
+            {!error && hazards && hazards.length === 0 && (
+                <div className="map-empty-overlay">
+                    <span className="overlay-icon">ℹ</span>
+                    <span>No active hazards detected</span>
+                </div>
+            )}
+        </div>
     );
 }

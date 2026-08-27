@@ -45,7 +45,7 @@ export default function LivePerceptionPanel({ systemStatus, hazards = [] }) {
             {/* Live OpenCV streaming JPEG output from FastAPI */}
             <div className="camera-feed-container">
                 <img 
-                    src={`${API_BASE_URL}/stream/video?t=${Date.now()}`} 
+                    src={`${API_BASE_URL}/stream/video`} 
                     alt="Road Camera Live Feed"
                     className="camera-image"
                     style={{ display: streamStatus === "ACTIVE" ? "block" : "none" }}

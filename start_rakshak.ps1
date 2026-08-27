@@ -20,7 +20,7 @@ if (-not $scriptDir) {
 
 # Determine video source based on the mode
 if ($Mode -eq "live") {
-    $videoSource = "http://192.168.0.102:8080/video"
+    $videoSource = "http://192.0.0.4:8080/video"
     
     Write-Host ""
     Write-Host "RAKSHAK LIVE MODE"
