@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from src.detector import HazardDetector
+from ai.src.detector import HazardDetector
 
 def test_mock_detector_initialization():
     """

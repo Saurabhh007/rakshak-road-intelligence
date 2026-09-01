@@ -1,4 +1,22 @@
-export default function StatsPanel({ roadHealth, hazards = [], onReset, isSimulating, onToggleSim, gpsSource, onToggleGps }) {
+export default function StatsPanel({
+    roadHealth,
+    hazards = [],
+    onReset,
+    routeState,
+    routeSpeed,
+    onStartRoute,
+    onPauseRoute,
+    onResumeRoute,
+    onResetRoute,
+    onSetRouteSpeed,
+    routeProgress = 0,
+    // Legacy labels remain wired to the same global route controls.
+    isSimulating,
+    onToggleSim,
+    gpsSource,
+    onToggleGps,
+    currentMode = "SYSTEM_DEMO"
+}) {
     const score = roadHealth?.prototype_road_health_score ?? 100.0;
     const totalHazards = roadHealth?.active_hazards ?? 0;
     const breakdown = roadHealth?.breakdown || { high_severity: 0, medium_severity: 0, low_severity: 0 };
@@ -31,7 +49,7 @@ export default function StatsPanel({ roadHealth, hazards = [], onReset, isSimula
 
     return (
         <div className="card stats-panel">
-            <h2 className="panel-title">ROAD ANALYTICS</h2>
+            <h2 className="panel-title">ROAD ANALYTICS & CONTROLS</h2>
 
             {/* Big Health Score visual */}
             <div className="road-health-score-container">
@@ -82,23 +100,50 @@ export default function StatsPanel({ roadHealth, hazards = [], onReset, isSimula
 
             {/* Dashboard Control actions */}
             <div className="controls-container">
-                <button 
-                    onClick={onToggleSim} 
-                    className={`btn ${isSimulating ? "btn-stop" : "btn-start"}`}
-                >
-                    {isSimulating ? "⏹️ STOP SIMULATION" : "▶️ START DRIVE SIM"}
-                </button>
+                <div className="summary-row" style={{ gridColumn: "1 / -1" }}>
+                    <span className="summary-label">GPS: SIMULATED</span>
+                    <span className="summary-value">{routeState} · {routeProgress}%</span>
+                </div>
+                <div className="summary-row" style={{ gridColumn: "1 / -1" }}>
+                    <span className="summary-label">ROUTE:</span>
+                    <span className="summary-value">Bhumkar Chowk → D. Y. Patil, Tathawade (via Service Road)</span>
+                </div>
+                <button onClick={onStartRoute} className="btn btn-start" disabled={routeState === "RUNNING"}>START ROUTE</button>
+                <button onClick={onPauseRoute} className="btn btn-secondary" disabled={routeState !== "RUNNING"}>PAUSE</button>
+                <button onClick={onResumeRoute} className="btn btn-secondary" disabled={routeState !== "PAUSED"}>RESUME</button>
+                <button onClick={onResetRoute} className="btn btn-secondary">RESET ROUTE</button>
+                <div style={{ gridColumn: "1 / -1", display: "flex", gap: "6px" }}>
+                    {[1, 2, 4].map(speed => <button key={speed} onClick={() => onSetRouteSpeed(speed)} className={`btn ${routeSpeed === speed ? "btn-start" : "btn-secondary"}`}>{speed}X</button>)}
+                </div>
+                {currentMode === "SYSTEM_DEMO" && (
+                    <button 
+                        onClick={onToggleSim} 
+                        className={`btn ${isSimulating ? "btn-stop" : "btn-start"}`}
+                    >
+                        {isSimulating ? "⏹️ PAUSE DRIVE SIM" : "▶️ PLAY DRIVE SIM"}
+                    </button>
+                )}
+                {currentMode !== "SYSTEM_DEMO" && (
+                    <button 
+                        onClick={onToggleGps} 
+                        className="btn btn-secondary"
+                        style={{ gridColumn: "1 / 2" }}
+                    >
+                        GPS: {gpsSource === "LIVE" ? "🟢 LIVE GEOLOCATION" : "⚪ N/A (SIMULATED)"}
+                    </button>
+                )}
                 <button 
                     onClick={onToggleGps} 
                     className="btn btn-secondary"
+                    style={{ display: currentMode === "SYSTEM_DEMO" ? "block" : "none" }}
                 >
-                    GPS SOURCE: {gpsSource === "LIVE" ? "🟢 LIVE" : "🟡 SIMULATED"}
+                    GPS: {gpsSource === "LIVE" ? "🟢 LIVE" : "🟡 DEMO"}
                 </button>
                 <button 
                     onClick={onReset} 
                     className="btn btn-danger"
                 >
-                    🔄 RESET SYSTEM DATA
+                    🔄 RESEED HAZARD DATABASE
                 </button>
             </div>
         </div>

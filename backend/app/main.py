@@ -33,9 +33,13 @@ def shutdown_event():
     video_processor.stop()
 
 # Set up CORS middleware for local React dev server
+origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+if "*" in origins:
+    origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()],
+    allow_origins=origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

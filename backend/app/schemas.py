@@ -28,6 +28,9 @@ class HazardCreate(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     status: HazardStatus = HazardStatus.detected
     source: str = Field(min_length=1, max_length=100)
+    is_simulated: bool = False
+    gps_source: str = "unknown"
+    gps_is_simulated: bool = False
 
     @field_validator("type", "source")
     @classmethod
@@ -47,6 +50,12 @@ class Hazard(HazardCreate):
     id: int
     model_config = ConfigDict(from_attributes=True)
 
+    @field_validator("timestamp", mode="after")
+    @classmethod
+    def normalize_timestamp_to_utc(cls, value: datetime) -> datetime:
+        """SQLite drops tzinfo; all stored hazard times are UTC by contract."""
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
 
 class HazardStatusUpdate(BaseModel):
     status: HazardStatus
@@ -64,6 +73,9 @@ class ObservationBase(BaseModel):
     confidence: float
     timestamp: str
     sensor_evidence: Optional[str] = None
+    is_simulated: bool = False
+    gps_source: str = "unknown"
+    gps_is_simulated: bool = False
 
 class ObservationCreate(ObservationBase):
     hazard_id: Optional[int] = None
@@ -78,8 +90,8 @@ class Observation(ObservationBase):
 
 # Telemetry Schemas
 class TelemetryRequest(BaseModel):
-    latitude: float
-    longitude: float
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
     speed_kmh: float = 0.0
     imu_accel_z: float = 9.8
     gps_source: str = "SIMULATED"  # "LIVE" or "SIMULATED"
@@ -93,9 +105,14 @@ class TelemetryWarning(BaseModel):
     status: str
 
 class SystemStatus(BaseModel):
-    ai_engine: str  # "REAL" or "SIMULATED"
-    gps: str        # "LIVE" or "SIMULATED"
+    ai_engine: str  # "REAL" or "SIMULATED" or "AI_UNAVAILABLE"
+    gps: str        # "LIVE" or "SIMULATED" or "DEMO TELEMETRY" or "N/A"
     backend: str    # "CONNECTED" or "OFFLINE"
+    camera: Optional[str] = "N/A"  # "ACTIVE", "OFFLINE", "UNAVAILABLE", "N/A"
+    mode: Optional[str] = "SYSTEM_DEMO"  # "LIVE_CAMERA", "SYSTEM_DEMO", "IMAGE_FALLBACK"
+    verification: Optional[str] = "ACTIVE"
+    map: Optional[str] = "ACTIVE"
+    warning_status: Optional[str] = "ACTIVE"
 
 class TelemetryResponse(BaseModel):
     warning_active: bool
@@ -125,3 +142,55 @@ class SimulationResetResponse(BaseModel):
     status: str
     ai_mode: str
     gps_source: str
+
+
+# Mode Selector Schemas
+class ModeSwitchRequest(BaseModel):
+    mode: str  # "LIVE_CAMERA", "SYSTEM_DEMO", "IMAGE_FALLBACK", "A", "B", "C"
+
+class ModeSwitchResponse(BaseModel):
+    status: str
+    mode: str
+    input_type: str
+    ai_mode: str
+    gps_mode: str
+    camera_status: str
+    detection_source: str
+
+
+# Option C Real AI Image Inference Schemas
+class RealInferenceDetection(BaseModel):
+    class_name: str
+    confidence: float
+    bbox: list[float]
+
+class RealInferenceResponse(BaseModel):
+    status: str  # "ok" or "AI_UNAVAILABLE"
+    image_name: str
+    threshold: float
+    detections: list[RealInferenceDetection]
+    annotated_image: Optional[str] = None
+    ai_mode: str
+    is_simulated: bool
+    source: str
+
+
+# Option D Upload Image Inference Schemas
+class UploadInferenceDetection(BaseModel):
+    class_id: Optional[int] = None
+    class_name: str
+    confidence: float
+    bbox: list[float]
+
+class UploadInferenceResponse(BaseModel):
+    status: str  # "ok" or "AI_UNAVAILABLE" or "error"
+    input_type: str = "uploaded_image"
+    ai_mode: str = "real_inference"
+    is_simulated: bool = False
+    filename: Optional[str] = None
+    threshold: float
+    detections: list[UploadInferenceDetection]
+    annotated_image: Optional[str] = None
+    message: Optional[str] = None
+
+

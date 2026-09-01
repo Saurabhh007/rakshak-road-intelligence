@@ -40,3 +40,16 @@ def ensure_hazard_schema() -> None:
             connection.execute(text("UPDATE hazards SET timestamp = COALESCE(first_detected, CURRENT_TIMESTAMP)"))
         if "source" not in columns:
             connection.execute(text("ALTER TABLE hazards ADD COLUMN source VARCHAR(100) NOT NULL DEFAULT 'manual'"))
+        if "is_simulated" not in columns:
+            connection.execute(text("ALTER TABLE hazards ADD COLUMN is_simulated INTEGER NOT NULL DEFAULT 0"))
+        if "gps_source" not in columns:
+            connection.execute(text("ALTER TABLE hazards ADD COLUMN gps_source VARCHAR(100) NOT NULL DEFAULT 'unknown'"))
+        if "gps_is_simulated" not in columns:
+            connection.execute(text("ALTER TABLE hazards ADD COLUMN gps_is_simulated INTEGER NOT NULL DEFAULT 0"))
+        observation_columns = {column["name"] for column in inspect(connection).get_columns("observations")} if inspect(connection).has_table("observations") else set()
+        if observation_columns and "is_simulated" not in observation_columns:
+            connection.execute(text("ALTER TABLE observations ADD COLUMN is_simulated INTEGER NOT NULL DEFAULT 0"))
+        if observation_columns and "gps_source" not in observation_columns:
+            connection.execute(text("ALTER TABLE observations ADD COLUMN gps_source VARCHAR(100) NOT NULL DEFAULT 'unknown'"))
+        if observation_columns and "gps_is_simulated" not in observation_columns:
+            connection.execute(text("ALTER TABLE observations ADD COLUMN gps_is_simulated INTEGER NOT NULL DEFAULT 0"))

@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-export default function MapView({ hazards, currentCoords, routeCoordinates, error }) {
+export default function MapView({ hazards, currentCoords, routeCoordinates, routeState, routeProgress, error }) {
     const mapRef = useRef(null);
     const mapInstance = useRef(null);
     const vehicleMarker = useRef(null);
@@ -11,13 +11,13 @@ export default function MapView({ hazards, currentCoords, routeCoordinates, erro
     // Initialize Leaflet Map
     useEffect(() => {
         if (mapRef.current && !mapInstance.current) {
-            // MG Road Bengaluru center
-            const centerLat = currentCoords?.latitude || 12.9716;
-            const centerLng = currentCoords?.longitude || 77.5946;
+            // Center map on starting point (Bhumkar Chowk)
+            const centerLat = currentCoords?.latitude || 18.6056;
+            const centerLng = currentCoords?.longitude || 73.7525;
 
             const map = L.map(mapRef.current, {
                 center: [centerLat, centerLng],
-                zoom: 16,
+                zoom: 15,
                 zoomControl: true
             });
 
@@ -38,6 +38,8 @@ export default function MapView({ hazards, currentCoords, routeCoordinates, erro
                     opacity: 0.6,
                     dashArray: "8, 8"
                 }).addTo(map);
+                L.marker(latlngs[0]).addTo(map).bindPopup("<b>START</b><br/>Bhumkar Chowk (Service Road)");
+                L.marker(latlngs[latlngs.length - 1]).addTo(map).bindPopup("<b>DESTINATION</b><br/>Dr. D. Y. Patil Institute / Campus, Tathawade");
             }
         }
 
@@ -106,6 +108,11 @@ export default function MapView({ hazards, currentCoords, routeCoordinates, erro
             const formattedTime = h.timestamp ? new Date(h.timestamp).toLocaleTimeString() : "N/A";
             const formattedDate = h.timestamp ? new Date(h.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : "N/A";
             const hazardId = `PTH-${String(h.id).padStart(3, '0')}`;
+            console.log(`[MAP MARKER RENDERED] Hazard #${hazardId} (${h.type.toUpperCase()}) at [${formattedLat}, ${formattedLng}] Severity: ${h.severity}`);
+
+            const hazardSource = h.source || "ai_camera";
+            const detectionSource = h.is_simulated ? "DEMO SIMULATED" : "REAL AI";
+            const gpsSource = h.gps_is_simulated ? "SIMULATED DEMO ROUTE" : (h.gps_source || "N/A");
 
             // Bind click popup with stats metadata details structured as a dark HUD card
             marker.bindPopup(`
@@ -114,24 +121,40 @@ export default function MapView({ hazards, currentCoords, routeCoordinates, erro
                         ${h.type.toUpperCase()} #${hazardId}
                     </div>
                     <div class="popup-field">
-                        <span class="popup-label">Severity:</span> 
+                        <span class="popup-label">POTHOLE ID:</span> 
+                        <span class="popup-value font-mono highlight-blue">#${hazardId}</span>
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">SEVERITY:</span> 
                         <span class="popup-value" style="color: ${color}; font-weight: 800;">${h.severity.toUpperCase()}</span>
                     </div>
                     <div class="popup-field">
-                        <span class="popup-label">Confidence:</span> 
+                        <span class="popup-label">CONFIDENCE:</span> 
                         <span class="popup-value highlight-blue">${(h.confidence * 100).toFixed(0)}%</span>
                     </div>
                     <div class="popup-field">
-                        <span class="popup-label">Location:</span> 
-                        <span class="popup-value font-mono">${formattedLat}, ${formattedLng}</span>
+                        <span class="popup-label">LATITUDE:</span> 
+                        <span class="popup-value font-mono">${formattedLat}</span>
                     </div>
                     <div class="popup-field">
-                        <span class="popup-label">Status:</span> 
+                        <span class="popup-label">LONGITUDE:</span> 
+                        <span class="popup-value font-mono">${formattedLng}</span>
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">STATUS:</span> 
                         <span class="popup-value status-active">${h.status}</span>
                     </div>
                     <div class="popup-field">
-                        <span class="popup-label">Detected:</span> 
+                        <span class="popup-label">DETECTED AT:</span> 
                         <span class="popup-value">${formattedDate} ${formattedTime}</span>
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">DETECTION SOURCE:</span> 
+                        <span class="popup-value font-mono">${detectionSource} (${hazardSource})</span>
+                    </div>
+                    <div class="popup-field">
+                        <span class="popup-label">GPS SOURCE:</span>
+                        <span class="popup-value font-mono">${gpsSource}</span>
                     </div>
                 </div>
             `);
@@ -157,6 +180,10 @@ export default function MapView({ hazards, currentCoords, routeCoordinates, erro
                     <span>{error}</span>
                 </div>
             )}
+            <div className="map-empty-overlay" style={{ top: "12px", bottom: "auto", pointerEvents: "none" }}>
+                <strong>GPS: SIMULATED</strong>&nbsp; · &nbsp;{routeState || "STOPPED"}&nbsp; · &nbsp;{routeProgress ?? 0}%
+                <br />Bhumkar Chowk → D. Y. Patil, Tathawade (via Service Road)
+            </div>
             {!error && hazards && hazards.length === 0 && (
                 <div className="map-empty-overlay">
                     <span className="overlay-icon">ℹ</span>

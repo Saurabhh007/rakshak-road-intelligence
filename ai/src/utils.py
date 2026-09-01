@@ -28,14 +28,15 @@ def draw_bounding_boxes(image: np.ndarray, detections: List[Dict[str, Any]]) -> 
         
         xmin, ymin, xmax, ymax = map(int, bbox)
         
-        # Color coding: Green for detections (or red for high alert)
-        color = (0, 0, 255)  # Red for pothole hazard
+        # Color coding: Red for pothole hazard
+        color = (0, 0, 255)
         
         # Draw bounding box rectangle
         cv2.rectangle(annotated, (xmin, ymin), (xmax, ymax), color, 2)
         
-        # Draw label banner
-        label = f"{class_name.upper()} {conf:.0%}"
+        # Display POTHOLE for D40 class name
+        display_name = "POTHOLE" if class_name.upper() == "D40" else class_name.upper()
+        label = f"{display_name} {conf:.0%}"
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.5
         thickness = 1

@@ -28,9 +28,10 @@ def process_observation(db: Session, observation_in: schemas.ObservationCreate) 
     closest_hazard = None
     min_dist = float('inf')
 
+    is_simulated = observation_in.is_simulated
     for h in hazards:
         # Ignore repaired/resolved records when aggregating new observations
-        if h.status in ["REPORTED_REPAIRED", "RESOLVED"]:
+        if h.status in ["REPORTED_REPAIRED", "RESOLVED"] or bool(h.is_simulated) != is_simulated:
             continue
         dist = haversine_distance(
             observation_in.latitude, observation_in.longitude,
@@ -59,13 +60,19 @@ def process_observation(db: Session, observation_in: schemas.ObservationCreate) 
             "latitude": new_lat,
             "longitude": new_lng,
             "confidence": new_confidence,
-            "last_detected": now_str
+            "last_detected": now_str,
+            "gps_source": observation_in.gps_source,
+            "gps_is_simulated": observation_in.gps_is_simulated,
         }
         
         # 3 & 4. Prototype Verification Heuristics
         # Transition DETECTED -> VERIFIED when count >= 3 (temporally/spatially consistent)
         if closest_hazard.status == "DETECTED":
-            if (count + 1) >= 3 or observation_in.source == "manual_report":
+            required_observations = (
+                settings.DEMO_VERIFICATION_OBSERVATIONS if is_simulated
+                else settings.REAL_CAMERA_VERIFICATION_OBSERVATIONS
+            )
+            if (count + 1) >= required_observations or observation_in.source == "manual_report":
                 updates["status"] = "VERIFIED"
         # If it was already VERIFIED, we promote it to ACTIVE because it's recently sighted
         elif closest_hazard.status == "VERIFIED":
@@ -87,6 +94,9 @@ def process_observation(db: Session, observation_in: schemas.ObservationCreate) 
             confidence=observation_in.confidence,
             timestamp=now_str,
             source=observation_in.source,
+            is_simulated=is_simulated,
+            gps_source=observation_in.gps_source,
+            gps_is_simulated=observation_in.gps_is_simulated,
         )
         hazard = crud.create_hazard(db, new_hazard_in)
         

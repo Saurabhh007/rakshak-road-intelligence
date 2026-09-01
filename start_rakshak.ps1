@@ -1,14 +1,16 @@
 # RAKSHAK - CREATE ONE-COMMAND DEMO LAUNCHER
 # Usage:
-# .\start_rakshak.ps1 live
-# .\start_rakshak.ps1 fallback
+# .\start_rakshak.ps1 live      (Laptop Webcam - Primary Live Mode)
+# .\start_rakshak.ps1 webcam    (Laptop Webcam)
+# .\start_rakshak.ps1 fallback  (Prerecorded Video)
 
 $Mode = $args[0]
 
-if ($args.Count -ne 1 -or ($Mode -ne "live" -and $Mode -ne "fallback")) {
+if ($args.Count -ne 1 -or ($Mode -ne "live" -and $Mode -ne "webcam" -and $Mode -ne "fallback")) {
     Write-Host "Usage:"
-    Write-Host ".\start_rakshak.ps1 live"
-    Write-Host ".\start_rakshak.ps1 fallback"
+    Write-Host ".\start_rakshak.ps1 live      (Laptop Webcam - Live Mode)"
+    Write-Host ".\start_rakshak.ps1 webcam    (Laptop Webcam)"
+    Write-Host ".\start_rakshak.ps1 fallback  (Prerecorded Video)"
     exit 1
 }
 
@@ -19,18 +21,19 @@ if (-not $scriptDir) {
 }
 
 # Determine video source based on the mode
-if ($Mode -eq "live") {
-    $videoSource = "http://192.0.0.4:8080/video"
+if ($Mode -eq "live" -or $Mode -eq "webcam") {
+    $videoSource = "0"
     
     Write-Host ""
-    Write-Host "RAKSHAK LIVE MODE"
-    Write-Host "Camera: $videoSource"
+    Write-Host "RAKSHAK LAPTOP WEBCAM LIVE MODE"
+    Write-Host "Camera: Laptop Webcam (Index 0)"
     Write-Host "Backend: http://localhost:8000"
     Write-Host "Frontend: http://localhost:5173"
     Write-Host "YOLO: REAL"
     Write-Host "Fallback: AVAILABLE"
     Write-Host ""
-} else {
+}
+else {
     $videoSource = "ai/test_videos/road_video.mp4"
     
     Write-Host ""
@@ -45,10 +48,13 @@ if ($Mode -eq "live") {
 # Set environment variables for the parent process
 $env:PYTHONPATH = "backend;."
 $env:VIDEO_SOURCE = $videoSource
+if ($Mode -eq "live" -or $Mode -eq "webcam") {
+    $env:CAMERA_URL = $videoSource
+}
 
 # Launch Backend in a new window
 # We set the console title and run the backend using uvicorn
-$backendCommand = "[Console]::Title = 'RAKSHAK Backend'; `$env:PYTHONPATH='backend;.'; `$env:VIDEO_SOURCE='$videoSource'; .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+$backendCommand = "[Console]::Title = 'RAKSHAK Backend'; `$env:PYTHONPATH='backend;.'; `$env:VIDEO_SOURCE='$videoSource'; `$env:CAMERA_URL='$videoSource'; .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCommand -WorkingDirectory $scriptDir
 
 # Launch Frontend in a new window

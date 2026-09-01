@@ -1,8 +1,9 @@
+import os
 import time
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 from app import schemas, crud, models
@@ -43,8 +44,147 @@ def get_video_stream():
 
 @router.get("/camera/status")
 def get_camera_status():
-    """Expose source connectivity without leaking a network-camera URL."""
+    """Expose source connectivity and truthful status without leaking a network-camera URL."""
     return video_processor.get_camera_status()
+
+
+@router.get("/mode")
+def get_current_mode():
+    """Query current system mode and pipeline statuses."""
+    return video_processor.get_camera_status()
+
+
+@router.post("/mode")
+def set_system_mode(request: schemas.ModeSwitchRequest):
+    """
+    Safely switch active input mode between LIVE_CAMERA, SYSTEM_DEMO, and IMAGE_FALLBACK.
+    Does not restart the backend or reload weights unnecessarily.
+    """
+    try:
+        status_info = video_processor.switch_mode(request.mode)
+        return schemas.ModeSwitchResponse(
+            status="ok",
+            mode=status_info["mode"],
+            input_type=status_info["input_type"],
+            ai_mode=status_info["ai_engine"],
+            gps_mode=status_info["gps_source"],
+            camera_status=status_info["camera_status"],
+            detection_source=status_info["detection_source"],
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/demo/real-inference", response_model=schemas.RealInferenceResponse)
+@router.post("/demo/real-inference", response_model=schemas.RealInferenceResponse)
+def run_real_image_inference(
+    associate_demo_route: bool = Query(False),
+    latitude: Optional[float] = Query(None, ge=-90, le=90),
+    longitude: Optional[float] = Query(None, ge=-180, le=180),
+):
+    """
+    OPTION C: Execute real RDD2022 YOLO inference on sample_road11.jpg with isolated threshold 0.25.
+    Returns status, detections, and annotated bounding box result without touching production DB.
+    """
+    if associate_demo_route:
+        if latitude is None or longitude is None:
+            raise HTTPException(status_code=400, detail="Simulated route association requires latitude and longitude.")
+        video_processor.set_coordinates(latitude, longitude, "DEMO_SIMULATED")
+    result = video_processor.run_real_image_inference(associate_demo_route=associate_demo_route)
+    return schemas.RealInferenceResponse(
+        status=result["status"],
+        image_name=result["image_name"],
+        threshold=result["threshold"],
+        detections=[
+            schemas.RealInferenceDetection(
+                class_name=d["class_name"],
+                confidence=d["confidence"],
+                bbox=d["bbox"],
+            )
+            for d in result["detections"]
+        ],
+        annotated_image=result["annotated_image"],
+        ai_mode=result["ai_mode"],
+        is_simulated=result["is_simulated"],
+        source=result["source"],
+    )
+
+
+@router.post("/upload/inference", response_model=schemas.UploadInferenceResponse)
+async def upload_image_inference(
+    file: UploadFile = File(...),
+    threshold: Optional[float] = Query(default=None, ge=0.01, le=1.0),
+    associate_demo_route: bool = Query(False),
+    latitude: Optional[float] = Query(None, ge=-90, le=90),
+    longitude: Optional[float] = Query(None, ge=-180, le=180),
+):
+    """
+    OPTION D: Upload road image and run REAL AI inference using pretrained RDD2022 YOLO model.
+    Validates file extension, size, and decodes safely in-memory.
+    """
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail="No file was uploaded.")
+
+    safe_filename = os.path.basename(file.filename)
+    ext = os.path.splitext(safe_filename)[1].lower()
+    allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+
+    if ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ext}'. Allowed types: jpg, jpeg, png, webp."
+        )
+
+    max_size_bytes = 15 * 1024 * 1024
+    try:
+        image_bytes = await file.read()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read uploaded file: {str(e)}")
+
+    if not image_bytes or len(image_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    if len(image_bytes) > max_size_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds maximum allowed size of {max_size_bytes // (1024 * 1024)}MB."
+        )
+
+    if associate_demo_route:
+        if latitude is None or longitude is None:
+            raise HTTPException(status_code=400, detail="Simulated route association requires latitude and longitude.")
+        video_processor.set_coordinates(latitude, longitude, "DEMO_SIMULATED")
+
+    result = video_processor.run_uploaded_image_inference(
+        image_bytes=image_bytes,
+        filename=safe_filename,
+        threshold=threshold,
+        associate_demo_route=associate_demo_route,
+    )
+
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message", "Image decoding failed."))
+
+    return schemas.UploadInferenceResponse(
+        status=result["status"],
+        input_type=result["input_type"],
+        ai_mode=result["ai_mode"],
+        is_simulated=result["is_simulated"],
+        filename=result.get("filename"),
+        threshold=result["threshold"],
+        detections=[
+            schemas.UploadInferenceDetection(
+                class_id=d.get("class_id"),
+                class_name=d["class_name"],
+                confidence=d["confidence"],
+                bbox=d["bbox"],
+            )
+            for d in result["detections"]
+        ],
+        annotated_image=result["annotated_image"],
+        message=result.get("message"),
+    )
+
 
 @router.post("/telemetry", response_model=schemas.TelemetryResponse)
 def post_telemetry(request: schemas.TelemetryRequest, db: Session = Depends(get_db)):
@@ -53,7 +193,10 @@ def post_telemetry(request: schemas.TelemetryRequest, db: Session = Depends(get_
     feed coordinates index, and runs warning geofence checks.
     """
     # 1. Update VideoProcessor position state
-    video_processor.set_coordinates(request.latitude, request.longitude)
+    mode = video_processor.get_camera_status()["mode"]
+    if mode == "LIVE_CAMERA" and request.gps_source.upper() not in {"LIVE", "DEMO_SIMULATED", "TEST_FALLBACK"}:
+        raise HTTPException(status_code=409, detail="LIVE_CAMERA accepts LIVE, DEMO_SIMULATED, or TEST_FALLBACK GPS telemetry.")
+    video_processor.set_coordinates(request.latitude, request.longitude, request.gps_source)
     
     # 2. Query active hazards from SQLite
     active_hazards = db.query(models.Hazard).filter(
@@ -85,18 +228,25 @@ def post_telemetry(request: schemas.TelemetryRequest, db: Session = Depends(get_
                     status=hazard.status
                 )
                 
-    # 4. Formulate overall system status flags
-    ai_status = "REAL" if not video_processor.detector.is_mock else "SIMULATED"
+    # 4. Formulate truthful overall system status flags
+    cam_status = video_processor.get_camera_status()
     
     return schemas.TelemetryResponse(
         warning_active=(closest_warning is not None),
         warning=closest_warning,
         system_status=schemas.SystemStatus(
-            ai_engine=ai_status,
+            ai_engine=str(cam_status["ai_engine"]),
             gps=request.gps_source,
-            backend="CONNECTED"
+            backend="CONNECTED",
+            camera=str(cam_status["camera_status"]),
+            mode=str(cam_status["mode"]),
+            verification="ACTIVE",
+            map="ACTIVE",
+            warning_status="ACTIVE" if closest_warning is not None else "ACTIVE"
         )
     )
+
+
 
 @router.get("/hazards/legacy", response_model=List[schemas.Hazard])
 def list_hazards(status: str = None, db: Session = Depends(get_db)):

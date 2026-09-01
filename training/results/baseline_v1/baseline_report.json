@@ -1,0 +1,178 @@
+{
+  "timestamp": "2026-08-29T19:37:09.091293",
+  "phase": "10D - Baseline YOLOv12 Training",
+  "pretrained_checkpoint": "yolo12n.pt",
+  "epochs_completed": 50,
+  "image_size": 640,
+  "batch_size": 4,
+  "dataset_statistics": {
+    "train": {
+      "images": 14,
+      "labels": 14,
+      "annotated_images": 10,
+      "background_images": 4,
+      "potholes": 12,
+      "cracks": 2
+    },
+    "val": {
+      "images": 3,
+      "labels": 3,
+      "annotated_images": 3,
+      "background_images": 0,
+      "potholes": 6,
+      "cracks": 0
+    },
+    "test": {
+      "images": 50,
+      "labels": 50,
+      "annotated_images": 29,
+      "background_images": 21,
+      "potholes": 40,
+      "cracks": 3
+    }
+  },
+  "validation_metrics": {
+    "precision": 0.936,
+    "recall": 0.1667,
+    "mAP50": 0.1659,
+    "mAP50_95": 0.0666,
+    "per_class": {
+      "pothole": {
+        "mAP50_95": 0.0666,
+        "mAP50": 0.1659,
+        "precision": 0.936,
+        "recall": 0.1667
+      },
+      "crack": {
+        "mAP50_95": 0.0666,
+        "mAP50": null,
+        "precision": null,
+        "recall": null
+      }
+    }
+  },
+  "test_metrics": {
+    "precision": 0.1658,
+    "recall": 0.0875,
+    "mAP50": 0.0944,
+    "mAP50_95": 0.0362,
+    "per_class": {
+      "pothole": {
+        "mAP50_95": 0.0724,
+        "mAP50": 0.1888,
+        "precision": 0.3316,
+        "recall": 0.175
+      },
+      "crack": {
+        "mAP50_95": 0.0,
+        "mAP50": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      }
+    }
+  },
+  "artifacts": {
+    "best_model": "D:\\rakshak-road-intelligence\\rakshak-road-intelligence\\training\\experiments\\baseline_v1\\weights\\best.pt",
+    "last_model": "D:\\rakshak-road-intelligence\\rakshak-road-intelligence\\training\\experiments\\baseline_v1\\weights\\last.pt",
+    "results_dir": "D:\\rakshak-road-intelligence\\rakshak-road-intelligence\\training\\results\\baseline_v1",
+    "predictions_dir": "D:\\rakshak-road-intelligence\\rakshak-road-intelligence\\training\\results\\baseline_v1\\predictions",
+    "total_test_images_inferred": 50
+  },
+  "sample_predictions": [
+    {
+      "image": "sample_road1.jpg",
+      "prediction_file": "pred_sample_road1.jpg",
+      "detection_count": 0,
+      "detections": []
+    },
+    {
+      "image": "sample_road10.jpg",
+      "prediction_file": "pred_sample_road10.jpg",
+      "detection_count": 0,
+      "detections": []
+    },
+    {
+      "image": "sample_road11.jpg",
+      "prediction_file": "pred_sample_road11.jpg",
+      "detection_count": 0,
+      "detections": []
+    },
+    {
+      "image": "sample_road12.jpg",
+      "prediction_file": "pred_sample_road12.jpg",
+      "detection_count": 0,
+      "detections": []
+    },
+    {
+      "image": "sample_road13.jpg",
+      "prediction_file": "pred_sample_road13.jpg",
+      "detection_count": 2,
+      "detections": [
+        {
+          "class_id": 0,
+          "class_name": "pothole",
+          "confidence": 0.6316,
+          "bbox_xyxy": [
+            787.05,
+            1395.75,
+            2557.41,
+            2106.53
+          ]
+        },
+        {
+          "class_id": 0,
+          "class_name": "pothole",
+          "confidence": 0.2874,
+          "bbox_xyxy": [
+            763.76,
+            1414.49,
+            2575.65,
+            2451.89
+          ]
+        }
+      ]
+    },
+    {
+      "image": "sample_road14.jpg",
+      "prediction_file": "pred_sample_road14.jpg",
+      "detection_count": 0,
+      "detections": []
+    },
+    {
+      "image": "sample_road15.jpg",
+      "prediction_file": "pred_sample_road15.jpg",
+      "detection_count": 0,
+      "detections": []
+    },
+    {
+      "image": "sample_road16.jpg",
+      "prediction_file": "pred_sample_road16.jpg",
+      "detection_count": 1,
+      "detections": [
+        {
+          "class_id": 0,
+          "class_name": "pothole",
+          "confidence": 0.5875,
+          "bbox_xyxy": [
+            535.24,
+            204.58,
+            1315.26,
+            515.43
+          ]
+        }
+      ]
+    },
+    {
+      "image": "sample_road17.jpg",
+      "prediction_file": "pred_sample_road17.jpg",
+      "detection_count": 0,
+      "detections": []
+    },
+    {
+      "image": "sample_road18.jpg",
+      "prediction_file": "pred_sample_road18.jpg",
+      "detection_count": 0,
+      "detections": []
+    }
+  ]
+}

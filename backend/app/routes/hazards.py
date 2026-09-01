@@ -41,6 +41,9 @@ def create_hazard(payload: schemas.HazardCreate, db: Session = Depends(get_db)):
         timestamp=payload.timestamp,
         status=payload.status.value,
         source=payload.source,
+        is_simulated=payload.is_simulated,
+        gps_source=payload.gps_source,
+        gps_is_simulated=payload.gps_is_simulated,
         first_detected=payload.timestamp.isoformat(),
         last_detected=payload.timestamp.isoformat(),
     )

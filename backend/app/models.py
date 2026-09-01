@@ -16,6 +16,9 @@ class Hazard(Base):
     confidence = Column(Float, nullable=False, default=0.0)
     timestamp = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     source = Column(String(100), nullable=False, default="manual")
+    is_simulated = Column(Integer, nullable=False, default=0)
+    gps_source = Column(String(100), nullable=False, default="unknown")
+    gps_is_simulated = Column(Integer, nullable=False, default=0)
     # Retained for the existing observation-processing service.
     first_detected = Column(String, nullable=False)
     last_detected = Column(String, nullable=False)
@@ -30,6 +33,9 @@ class Observation(Base):
     id = Column(Integer, primary_key=True, index=True)
     hazard_id = Column(Integer, ForeignKey("hazards.id", ondelete="CASCADE"), nullable=True)
     source = Column(String, nullable=False)  # 'ai_camera', 'manual_report', etc.
+    is_simulated = Column(Integer, nullable=False, default=0)
+    gps_source = Column(String(100), nullable=False, default="unknown")
+    gps_is_simulated = Column(Integer, nullable=False, default=0)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     confidence = Column(Float, nullable=False)

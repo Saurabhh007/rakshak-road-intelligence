@@ -12,15 +12,20 @@ def get_hazards(db: Session, skip: int = 0, limit: int = 100, status: str = None
     return query.offset(skip).limit(limit).all()
 
 def create_hazard(db: Session, hazard: schemas.HazardCreate):
+    severity_val = hazard.severity.value if hasattr(hazard.severity, "value") else str(hazard.severity)
+    status_val = hazard.status.value if hasattr(hazard.status, "value") else str(hazard.status)
     db_hazard = models.Hazard(
         type=hazard.type,
         latitude=hazard.latitude,
         longitude=hazard.longitude,
-        severity=hazard.severity,
-        status=hazard.status,
+        severity=severity_val,
+        status=status_val,
         confidence=hazard.confidence,
         timestamp=hazard.timestamp,
         source=hazard.source,
+        is_simulated=hazard.is_simulated,
+        gps_source=hazard.gps_source,
+        gps_is_simulated=hazard.gps_is_simulated,
         # Legacy lifecycle fields support the observation pipeline.
         first_detected=hazard.timestamp.isoformat(),
         last_detected=hazard.timestamp.isoformat(),
@@ -61,7 +66,10 @@ def create_observation(db: Session, observation: schemas.ObservationCreate):
         longitude=observation.longitude,
         confidence=observation.confidence,
         timestamp=observation.timestamp,
-        sensor_evidence=observation.sensor_evidence
+        sensor_evidence=observation.sensor_evidence,
+        is_simulated=observation.is_simulated,
+        gps_source=observation.gps_source,
+        gps_is_simulated=observation.gps_is_simulated,
     )
     db.add(db_observation)
     db.commit()

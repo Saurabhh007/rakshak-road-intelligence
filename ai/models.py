@@ -11,6 +11,7 @@ class Detection:
     class_name: str
     confidence: float
     bbox: tuple[float, float, float, float]
+    class_id: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-ready representation for API or logging boundaries."""

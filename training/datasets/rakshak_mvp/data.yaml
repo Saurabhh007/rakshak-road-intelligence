@@ -1,5 +1,9 @@
+path: D:/rakshak-road-intelligence/rakshak-road-intelligence/training/datasets/rakshak_mvp
+train: images/train
+val: images/val
+test: images/test
+
 names:
   0: pothole
   1: crack
-path: .
-train: train.txt
+
